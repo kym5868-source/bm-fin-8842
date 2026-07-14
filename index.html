@@ -118,8 +118,17 @@
 
     <div class="controls">
       <div>
-        <label for="month">월 선택</label>
-        <select id="month"></select>
+        <label>기간 단위</label>
+        <div class="seg" id="ptype">
+          <button data-p="월" class="on">월</button>
+          <button data-p="분기">분기</button>
+          <button data-p="반기">반기</button>
+          <button data-p="년">년</button>
+        </div>
+      </div>
+      <div>
+        <label for="period">기간 선택</label>
+        <select id="period"></select>
       </div>
       <div id="modeWrap">
         <label>보기 모드</label>
@@ -146,7 +155,7 @@
         <div id="trend"></div>
       </div>
       <div>
-        <h3 style="border-top:0;padding-top:0">일별 지출</h3>
+        <h3 id="dailyH" style="border-top:0;padding-top:0">일별 지출</h3>
         <div id="daily"></div>
       </div>
     </div>
@@ -163,7 +172,7 @@ const $ = s => document.querySelector(s);
 const won = n => Math.round(n).toLocaleString('ko-KR') + '원';
 let DATA = null;
 let FIN_ENC = null;
-const state = { mode: '전체', month: null };
+const state = { mode: '전체', ptype: '월', period: null };
 
 /* ---------- 데이터 로드(캐시 우회: 재배포 즉시 반영) ---------- */
 async function loadEnc(){
@@ -201,27 +210,46 @@ const monthOf = d => d.slice(0,7);
 const spendOf = a => a<0 ? -a : 0;
 const incomeOf = a => a>0 ? a : 0;
 function baseRows(){ const src = state.mode==='카드' ? '카드내역' : '가계부'; return DATA.rows.filter(r=>r.s===src); }
-function monthsOf(rows){ return [...new Set(rows.map(r=>monthOf(r.d)))].sort().reverse(); }
 function sum(rows, f){ return rows.reduce((t,r)=>t+f(r.a),0); }
+
+/* 기간(월/분기/반기/년) 키·라벨 */
+function periodKeyOf(d, ptype){
+  const y=d.slice(0,4), mo=+d.slice(5,7);
+  if(ptype==='년') return y;
+  if(ptype==='반기') return `${y}-H${mo<=6?1:2}`;
+  if(ptype==='분기') return `${y}-Q${Math.ceil(mo/3)}`;
+  return d.slice(0,7); // 월
+}
+function periodsOf(rows, ptype){ return [...new Set(rows.map(r=>periodKeyOf(r.d, ptype)))].sort().reverse(); }
+function periodLabel(key, ptype){
+  if(ptype==='년') return `${key}년`;
+  const [y, tag] = key.split('-');
+  if(ptype==='반기') return `${y}년 ${tag==='H1'?'상반기':'하반기'}`;
+  if(ptype==='분기') return `${y}년 ${tag[1]}분기`;
+  return `${y}년 ${+key.slice(5,7)}월`;
+}
+function monthsInRows(rows){ return new Set(rows.map(r=>r.d.slice(0,7))).size || 1; }
+const periodWord = () => state.ptype==='월' ? '이번 달' : '이 기간';
+const prevWord = () => state.ptype==='월' ? '전월' : '직전 기간';
 
 /* ---------- 렌더 ---------- */
 function render(){
   const base = baseRows();
-  const months = monthsOf(base);
-  if(!state.month || !months.includes(state.month)) state.month = months[0];
-  const idx = months.indexOf(state.month);
-  const cur = base.filter(r=>monthOf(r.d)===state.month);
-  const prev = idx+1<months.length ? base.filter(r=>monthOf(r.d)===months[idx+1]) : [];
+  const periods = periodsOf(base, state.ptype);
+  if(!state.period || !periods.includes(state.period)) state.period = periods[0];
+  const idx = periods.indexOf(state.period);
+  const cur = base.filter(r=>periodKeyOf(r.d, state.ptype)===state.period);
+  const prev = idx+1<periods.length ? base.filter(r=>periodKeyOf(r.d, state.ptype)===periods[idx+1]) : [];
 
   const desc = state.mode==='카드' ? '카드 사용 상세' : '가계부 전체 (카드대금·대출·저축 등 모든 지출 포함)';
-  $('#cap').textContent = `기준: ${state.month} · ${desc}`;
+  $('#cap').textContent = `기준: ${periodLabel(state.period, state.ptype)} · ${desc}`;
 
   renderKPI(cur, prev);
   renderNote(cur, prev);
   renderCategory(cur);
   renderBudget(cur);
   renderTrend(base);
-  renderDaily(cur);
+  renderBreakdown(cur);
   renderTable(cur);
 }
 
@@ -230,7 +258,7 @@ function renderKPI(cur, prev){
   const pspend = prev.length ? sum(prev,spendOf) : 0;
   let d='';
   if(pspend){ const diff=spend-pspend; const c=diff>0?'var(--red)':'var(--green)'; const ar=diff>0?'▲':'▼';
-    d = `<div class="d" style="color:${c}">${ar} ${Math.abs(diff).toLocaleString('ko-KR')}원 (전월 대비)</div>`; }
+    d = `<div class="d" style="color:${c}">${ar} ${Math.abs(diff).toLocaleString('ko-KR')}원 (${prevWord()} 대비)</div>`; }
   const cards = [
     ['총지출', won(spend), d],
     ['총수입', won(income), ''],
@@ -245,11 +273,11 @@ function renderNote(cur, prev){
   const pspend = prev.length ? sum(prev,spendOf) : 0;
   const lines=[];
   if(pspend){ const diff=spend-pspend;
-    if(diff>0) lines.push(`전월보다 지출이 ${won(diff)} 늘었습니다. 늘어난 항목을 아래 카테고리에서 확인해 보세요.`);
-    else if(diff<0) lines.push(`전월보다 지출이 ${won(-diff)} 줄었습니다. 잘 관리하고 계십니다. 👍`); }
-  if(net>0) lines.push(`이번 달 여유자금이 약 ${won(net)} 남았습니다. 적금·투자보다 <b>고금리 대출 상환</b>에 먼저 쓰는 편이 유리합니다.`);
-  else if(net<0) lines.push(`이번 달은 지출이 수입을 ${won(-net)} 넘었습니다. 큰 지출 항목이 있었는지 점검이 필요합니다.`);
-  const msg = lines.length ? lines.join(' ') : '이번 달 데이터 기준 특이사항은 없습니다. 꾸준히 잘 관리하고 계십니다.';
+    if(diff>0) lines.push(`${prevWord()}보다 지출이 ${won(diff)} 늘었습니다. 늘어난 항목을 아래 카테고리에서 확인해 보세요.`);
+    else if(diff<0) lines.push(`${prevWord()}보다 지출이 ${won(-diff)} 줄었습니다. 잘 관리하고 계십니다. 👍`); }
+  if(net>0) lines.push(`${periodWord()} 여유자금이 약 ${won(net)} 남았습니다. 적금·투자보다 <b>고금리 대출 상환</b>에 먼저 쓰는 편이 유리합니다.`);
+  else if(net<0) lines.push(`${periodWord()}은 지출이 수입을 ${won(-net)} 넘었습니다. 큰 지출 항목이 있었는지 점검이 필요합니다.`);
+  const msg = lines.length ? lines.join(' ') : `${periodWord()} 데이터 기준 특이사항은 없습니다. 꾸준히 잘 관리하고 계십니다.`;
   $('#note').innerHTML = `🤖 <b>재무 비서 한마디</b> — ${msg}`;
 }
 
@@ -275,8 +303,11 @@ function renderBudget(cur){
   const keys = Object.keys(budget);
   if(!keys.length){ $('#budgetH').classList.add('hidden'); $('#budget').innerHTML=''; return; }
   $('#budgetH').classList.remove('hidden');
+  // 예산은 '월' 기준 → 선택 기간에 포함된 개월 수만큼 곱해 공평하게 비교
+  const nMonths = monthsInRows(cur);
+  $('#budgetH').textContent = nMonths>1 ? `예산 대비 (${nMonths}개월분)` : '예산 대비';
   const used={}; cur.forEach(r=>{ const s=spendOf(r.a); if(s>0) used[r.c]=(used[r.c]||0)+s; });
-  const rows = keys.map(c=>({c, used:used[c]||0, limit:budget[c], pct: budget[c]? (used[c]||0)/budget[c]*100 : 0}))
+  const rows = keys.map(c=>{ const limit=budget[c]*nMonths; return {c, used:used[c]||0, limit, pct: limit? (used[c]||0)/limit*100 : 0}; })
                    .sort((a,b)=>b.pct-a.pct);
   const over = rows.filter(r=>r.pct>=100).map(r=>r.c);
   $('#budget').innerHTML = '<div class="bars">'+rows.map(r=>{
@@ -308,9 +339,12 @@ function renderTrend(base){
   </svg>`;
 }
 
-function renderDaily(cur){
+function renderBreakdown(cur){
+  // 월 보기 → 일별, 그 외(분기/반기/년) → 기간 내 월별 지출
+  const byMonth = state.ptype!=='월';
+  $('#dailyH').textContent = byMonth ? '월별 지출' : '일별 지출';
   const m={};
-  cur.forEach(r=>{ const s=spendOf(r.a); if(s>0){ const d=r.d.slice(5); m[d]=(m[d]||0)+s; } });
+  cur.forEach(r=>{ const s=spendOf(r.a); if(s>0){ const k=byMonth? r.d.slice(0,7) : r.d.slice(5); m[k]=(m[k]||0)+s; } });
   const ks=Object.keys(m).sort();
   if(!ks.length){ $('#daily').innerHTML='<div class="empty">지출 데이터가 없습니다.</div>'; return; }
   const max=Math.max(...ks.map(k=>m[k]));
@@ -318,7 +352,8 @@ function renderDaily(cur){
   const bw=(W-P*2)/ks.length;
   const bars=ks.map((k,i)=>{ const h=(H-P-BB)*(m[k]/max); return `<rect x="${(P+i*bw+bw*0.15).toFixed(1)}" y="${(H-BB-h).toFixed(1)}" width="${(bw*0.7).toFixed(1)}" height="${h.toFixed(1)}" fill="#3b82f6" rx="1"/>`; }).join('');
   const showEvery=Math.ceil(ks.length/8);
-  const labels=ks.map((k,i)=> (i%showEvery===0)?`<text x="${(P+i*bw+bw/2).toFixed(1)}" y="${H-4}" fill="#9aa6be" font-size="9" text-anchor="middle">${k}</text>`:'').join('');
+  const lab=k=> byMonth ? k.slice(2) : k; // 월별은 26-07 형태로 축약
+  const labels=ks.map((k,i)=> (i%showEvery===0)?`<text x="${(P+i*bw+bw/2).toFixed(1)}" y="${H-4}" fill="#9aa6be" font-size="9" text-anchor="middle">${lab(k)}</text>`:'').join('');
   $('#daily').innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${bars}${labels}</svg>`;
 }
 
@@ -337,20 +372,24 @@ function renderTable(cur){
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 /* ---------- 초기화 ---------- */
+function rebuildPeriods(keep){
+  const ps = periodsOf(baseRows(), state.ptype);
+  state.period = (keep && ps.includes(state.period)) ? state.period : ps[0];
+  $('#period').innerHTML = ps.map(p=>`<option value="${p}">${periodLabel(p, state.ptype)}</option>`).join('');
+  $('#period').value = state.period;
+}
 function init(){
   $('#gen').textContent = DATA.generated_at || '-';
-  // 카드 모드 유무
   if(!DATA.has_card){ $('#modeWrap').classList.add('hidden'); state.mode='전체'; }
-  // 월 셀렉트
-  const months = monthsOf(baseRows());
-  state.month = months[0];
-  $('#month').innerHTML = months.map(m=>`<option>${m}</option>`).join('');
-  $('#month').value = state.month;
-  $('#month').onchange = e=>{ state.month=e.target.value; render(); };
+  rebuildPeriods(false);
+  $('#period').onchange = e=>{ state.period=e.target.value; render(); };
+  document.querySelectorAll('#ptype button').forEach(b=>{
+    b.onclick=()=>{ state.ptype=b.dataset.p; document.querySelectorAll('#ptype button').forEach(x=>x.classList.toggle('on',x===b));
+      rebuildPeriods(false); render(); };
+  });
   document.querySelectorAll('#mode button').forEach(b=>{
     b.onclick=()=>{ state.mode=b.dataset.m; document.querySelectorAll('#mode button').forEach(x=>x.classList.toggle('on',x===b));
-      const ms=monthsOf(baseRows()); state.month=ms.includes(state.month)?state.month:ms[0];
-      $('#month').innerHTML=ms.map(m=>`<option>${m}</option>`).join(''); $('#month').value=state.month; render(); };
+      rebuildPeriods(true); render(); };
   });
   render();
 }
