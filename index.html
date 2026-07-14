@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>재무 비서</title>
+<meta name="theme-color" content="#0b0f19">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="재무">
+<style>
+  :root{
+    --bg:#0b0f19; --panel:#141a29; --panel2:#1b2333; --line:#26304a;
+    --txt:#e8edf7; --muted:#9aa6be; --accent:#34c759; --red:#e5484d; --green:#2fa84f;
+    --bar:#3b82f6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;
+    -webkit-text-size-adjust:100%}
+  a{color:inherit}
+  .wrap{max-width:1040px;margin:0 auto;padding:16px 14px 48px}
+  h1{font-size:1.4rem;margin:.2rem 0}
+  .muted{color:var(--muted)}
+  .cap{color:var(--muted);font-size:.85rem;margin:.2rem 0 1rem}
+
+  /* 로그인 */
+  #login{min-height:80vh;display:flex;flex-direction:column;justify-content:center;
+    align-items:center;gap:14px;text-align:center;padding:20px}
+  #login .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:26px 22px;width:100%;max-width:340px}
+  #login h2{margin:.2rem 0 1rem;font-size:1.3rem}
+  input[type=password]{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--txt);font-size:1rem}
+  .btn{margin-top:12px;width:100%;padding:12px;border:0;border-radius:10px;background:var(--accent);
+    color:#06210f;font-weight:700;font-size:1rem;cursor:pointer}
+  .remember{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:12px;
+    color:var(--muted);font-size:.85rem}
+  #err{color:var(--red);font-size:.85rem;min-height:1.2em;margin-top:8px}
+
+  /* 컨트롤 */
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
+  .controls label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px}
+  select{padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);
+    color:var(--txt);font-size:.95rem;min-width:130px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .seg button{padding:9px 16px;border:0;background:var(--panel2);color:var(--muted);font-size:.9rem;cursor:pointer}
+  .seg button.on{background:var(--accent);color:#06210f;font-weight:700}
+
+  /* KPI */
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:6px 0 4px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .kpi .l{font-size:.8rem;color:var(--muted);margin-bottom:5px}
+  .kpi .v{font-size:1.5rem;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kpi .d{font-size:.75rem;margin-top:3px}
+
+  .note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+    border-radius:12px;padding:14px 16px;margin:14px 0;line-height:1.5}
+  .sign{color:var(--muted);font-size:.8rem;margin-top:6px}
+
+  h3{font-size:1.05rem;margin:22px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+
+  /* 막대 리스트 */
+  .bars{display:flex;flex-direction:column;gap:7px}
+  .barrow{display:grid;grid-template-columns:96px 1fr auto;gap:8px;align-items:center;font-size:.88rem}
+  .barrow .name{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .track{background:var(--panel2);border-radius:6px;height:16px;overflow:hidden}
+  .fill{height:100%;background:var(--bar);border-radius:6px}
+  .fill.over{background:var(--red)}
+  .amt{font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  /* 표 */
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+  table{border-collapse:collapse;width:100%;font-size:.85rem;min-width:560px}
+  th,td{padding:8px 10px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--panel)}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:0}
+  .neg{color:#ff8f92}.pos{color:#7ee2a0}
+
+  svg{width:100%;height:auto;display:block}
+  .legend{display:flex;gap:14px;font-size:.8rem;color:var(--muted);margin:2px 0 8px}
+  .legend .k{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  .empty{color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .hidden{display:none}
+
+  @media (max-width:640px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+    .kpi .v{font-size:1.25rem}
+    .row2{grid-template-columns:1fr}
+    h1{font-size:1.25rem}
+    .controls{gap:8px}
+    select{min-width:120px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- 로그인 -->
+  <section id="login">
+    <div class="box">
+      <h2>🔒 재무 비서</h2>
+      <input id="pw" type="password" inputmode="text" autocomplete="current-password" placeholder="비밀번호" />
+      <button class="btn" id="unlock">열기</button>
+      <label class="remember"><input type="checkbox" id="remember" checked /> 이 기기에서 기억</label>
+      <div id="err"></div>
+      <div class="muted" style="font-size:.75rem;margin-top:10px">개인 가계부 데이터 보호를 위해 암호화되어 있습니다.</div>
+    </div>
+  </section>
+
+  <!-- 대시보드 -->
+  <section id="app" class="hidden">
+    <h1>💰 AI 개인 재무 비서</h1>
+    <div class="cap" id="cap"></div>
+
+    <div class="controls">
+      <div>
+        <label for="month">월 선택</label>
+        <select id="month"></select>
+      </div>
+      <div id="modeWrap">
+        <label>보기 모드</label>
+        <div class="seg" id="mode">
+          <button data-m="전체" class="on">전체</button>
+          <button data-m="카드">카드</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-grid" id="kpi"></div>
+    <div class="note" id="note"></div>
+
+    <h3>카테고리별 지출</h3>
+    <div id="cat"></div>
+
+    <h3 id="budgetH">예산 대비</h3>
+    <div id="budget"></div>
+
+    <div class="row2">
+      <div>
+        <h3 style="border-top:0;padding-top:0">월별 추이</h3>
+        <div class="legend"><span><span class="k" style="background:var(--red)"></span>지출</span><span><span class="k" style="background:var(--green)"></span>수입</span></div>
+        <div id="trend"></div>
+      </div>
+      <div>
+        <h3 style="border-top:0;padding-top:0">일별 지출</h3>
+        <div id="daily"></div>
+      </div>
+    </div>
+
+    <h3>거래 내역</h3>
+    <div id="table"></div>
+
+    <div class="sign" style="margin-top:22px">김용민 본부장님 개인용 대시보드입니다. 스냅샷 기준 시각: <span id="gen"></span></div>
+  </section>
+</div>
+
+<script src="data.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const won = n => Math.round(n).toLocaleString('ko-KR') + '원';
+let DATA = null;
+const state = { mode: '전체', month: null };
+
+/* ---------- 복호화 ---------- */
+function b64ToBuf(b){ const s=atob(b); const u=new Uint8Array(s.length); for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i); return u; }
+async function decryptWith(passphrase){
+  const E = window.FIN_ENC;
+  const key = await crypto.subtle.deriveKey(
+    {name:'PBKDF2', salt:b64ToBuf(E.salt), iterations:E.iter, hash:'SHA-256'},
+    await crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']),
+    {name:'AES-GCM', length:256}, false, ['decrypt']);
+  const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64ToBuf(E.iv)}, key, b64ToBuf(E.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function tryUnlock(passphrase, remember){
+  const err = $('#err'); err.textContent='';
+  try{
+    DATA = await decryptWith(passphrase);
+  }catch(e){ err.textContent='비밀번호가 틀립니다.'; return false; }
+  if(remember) localStorage.setItem('fin_pp', passphrase);
+  $('#login').classList.add('hidden');
+  $('#app').classList.remove('hidden');
+  init();
+  return true;
+}
+
+/* ---------- 집계 ---------- */
+const monthOf = d => d.slice(0,7);
+const spendOf = a => a<0 ? -a : 0;
+const incomeOf = a => a>0 ? a : 0;
+function baseRows(){ const src = state.mode==='카드' ? '카드내역' : '가계부'; return DATA.rows.filter(r=>r.s===src); }
+function monthsOf(rows){ return [...new Set(rows.map(r=>monthOf(r.d)))].sort().reverse(); }
+function sum(rows, f){ return rows.reduce((t,r)=>t+f(r.a),0); }
+
+/* ---------- 렌더 ---------- */
+function render(){
+  const base = baseRows();
+  const months = monthsOf(base);
+  if(!state.month || !months.includes(state.month)) state.month = months[0];
+  const idx = months.indexOf(state.month);
+  const cur = base.filter(r=>monthOf(r.d)===state.month);
+  const prev = idx+1<months.length ? base.filter(r=>monthOf(r.d)===months[idx+1]) : [];
+
+  const desc = state.mode==='카드' ? '카드 사용 상세' : '가계부 전체 (카드대금·대출·저축 등 모든 지출 포함)';
+  $('#cap').textContent = `기준: ${state.month} · ${desc}`;
+
+  renderKPI(cur, prev);
+  renderNote(cur, prev);
+  renderCategory(cur);
+  renderBudget(cur);
+  renderTrend(base);
+  renderDaily(cur);
+  renderTable(cur);
+}
+
+function renderKPI(cur, prev){
+  const spend=sum(cur,spendOf), income=sum(cur,incomeOf), net=income-spend;
+  const pspend = prev.length ? sum(prev,spendOf) : 0;
+  let d='';
+  if(pspend){ const diff=spend-pspend; const c=diff>0?'var(--red)':'var(--green)'; const ar=diff>0?'▲':'▼';
+    d = `<div class="d" style="color:${c}">${ar} ${Math.abs(diff).toLocaleString('ko-KR')}원 (전월 대비)</div>`; }
+  const cards = [
+    ['총지출', won(spend), d],
+    ['총수입', won(income), ''],
+    ['순액(수입-지출)', won(net), ''],
+    ['거래 건수', cur.length.toLocaleString('ko-KR')+'건', ''],
+  ];
+  $('#kpi').innerHTML = cards.map(([l,v,dd])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div>${dd}</div>`).join('');
+}
+
+function renderNote(cur, prev){
+  const spend=sum(cur,spendOf), income=sum(cur,incomeOf), net=income-spend;
+  const pspend = prev.length ? sum(prev,spendOf) : 0;
+  const lines=[];
+  if(pspend){ const diff=spend-pspend;
+    if(diff>0) lines.push(`전월보다 지출이 ${won(diff)} 늘었습니다. 늘어난 항목을 아래 카테고리에서 확인해 보세요.`);
+    else if(diff<0) lines.push(`전월보다 지출이 ${won(-diff)} 줄었습니다. 잘 관리하고 계십니다. 👍`); }
+  if(net>0) lines.push(`이번 달 여유자금이 약 ${won(net)} 남았습니다. 적금·투자보다 <b>고금리 대출 상환</b>에 먼저 쓰는 편이 유리합니다.`);
+  else if(net<0) lines.push(`이번 달은 지출이 수입을 ${won(-net)} 넘었습니다. 큰 지출 항목이 있었는지 점검이 필요합니다.`);
+  const msg = lines.length ? lines.join(' ') : '이번 달 데이터 기준 특이사항은 없습니다. 꾸준히 잘 관리하고 계십니다.';
+  $('#note').innerHTML = `🤖 <b>재무 비서 한마디</b> — ${msg}`;
+}
+
+function groupSpend(rows){
+  const m={};
+  rows.forEach(r=>{ const s=spendOf(r.a); if(s>0) m[r.c]=(m[r.c]||0)+s; });
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+}
+function renderCategory(cur){
+  const g = groupSpend(cur);
+  if(!g.length){ $('#cat').innerHTML='<div class="empty">지출 데이터가 없습니다.</div>'; return; }
+  const total=g.reduce((t,[,v])=>t+v,0), max=g[0][1];
+  $('#cat').innerHTML = '<div class="bars">'+g.map(([name,v])=>{
+    const pct=(v/max*100).toFixed(0), share=(v/total*100).toFixed(1);
+    return `<div class="barrow"><span class="name">${esc(name)}</span>
+      <span class="track"><span class="fill" style="width:${pct}%"></span></span>
+      <span class="amt">${won(v)} <span class="muted">(${share}%)</span></span></div>`;
+  }).join('')+'</div>';
+}
+
+function renderBudget(cur){
+  const budget = DATA.budget||{};
+  const keys = Object.keys(budget);
+  if(!keys.length){ $('#budgetH').classList.add('hidden'); $('#budget').innerHTML=''; return; }
+  $('#budgetH').classList.remove('hidden');
+  const used={}; cur.forEach(r=>{ const s=spendOf(r.a); if(s>0) used[r.c]=(used[r.c]||0)+s; });
+  const rows = keys.map(c=>({c, used:used[c]||0, limit:budget[c], pct: budget[c]? (used[c]||0)/budget[c]*100 : 0}))
+                   .sort((a,b)=>b.pct-a.pct);
+  const over = rows.filter(r=>r.pct>=100).map(r=>r.c);
+  $('#budget').innerHTML = '<div class="bars">'+rows.map(r=>{
+    const w=Math.min(r.pct,100).toFixed(0);
+    return `<div class="barrow"><span class="name">${esc(r.c)}</span>
+      <span class="track"><span class="fill ${r.pct>=100?'over':''}" style="width:${w}%"></span></span>
+      <span class="amt">${r.used.toLocaleString('ko-KR')} / ${r.limit.toLocaleString('ko-KR')} <span class="muted">(${r.pct.toFixed(0)}%)</span></span></div>`;
+  }).join('')+'</div>'
+    + (over.length ? `<div class="empty" style="margin-top:8px;border-color:var(--red);color:#ff8f92">예산 초과: ${over.map(esc).join(', ')}</div>` : '');
+}
+
+function renderTrend(base){
+  const m={};
+  base.forEach(r=>{ const k=monthOf(r.d); (m[k]=m[k]||{s:0,i:0}); m[k].s+=spendOf(r.a); m[k].i+=incomeOf(r.a); });
+  const ks=Object.keys(m).sort();
+  if(ks.length<2){ $('#trend').innerHTML='<div class="empty">추이는 2개월 이상 데이터가 쌓이면 표시됩니다.</div>'; return; }
+  const W=460,H=180,P=8,BL=26,BB=18;
+  const maxV=Math.max(...ks.map(k=>Math.max(m[k].s,m[k].i)),1);
+  const x=i=> P+BL + i*( (W-P*2-BL)/(ks.length-1) );
+  const y=v=> P + (H-P-BB) * (1 - v/maxV);
+  const path=key=> ks.map((k,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(m[k][key]).toFixed(1)}`).join(' ');
+  const showEvery = Math.ceil(ks.length/6);
+  const labels = ks.map((k,i)=> (i%showEvery===0||i===ks.length-1) ? `<text x="${x(i).toFixed(1)}" y="${H-4}" fill="#9aa6be" font-size="9" text-anchor="middle">${k.slice(2)}</text>`:'').join('');
+  $('#trend').innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+    <line x1="${P+BL}" y1="${y(0)}" x2="${W-P}" y2="${y(0)}" stroke="#26304a"/>
+    <path d="${path('i')}" fill="none" stroke="#2fa84f" stroke-width="2"/>
+    <path d="${path('s')}" fill="none" stroke="#e5484d" stroke-width="2"/>
+    ${labels}
+  </svg>`;
+}
+
+function renderDaily(cur){
+  const m={};
+  cur.forEach(r=>{ const s=spendOf(r.a); if(s>0){ const d=r.d.slice(5); m[d]=(m[d]||0)+s; } });
+  const ks=Object.keys(m).sort();
+  if(!ks.length){ $('#daily').innerHTML='<div class="empty">지출 데이터가 없습니다.</div>'; return; }
+  const max=Math.max(...ks.map(k=>m[k]));
+  const W=460,H=180,P=8,BB=18;
+  const bw=(W-P*2)/ks.length;
+  const bars=ks.map((k,i)=>{ const h=(H-P-BB)*(m[k]/max); return `<rect x="${(P+i*bw+bw*0.15).toFixed(1)}" y="${(H-BB-h).toFixed(1)}" width="${(bw*0.7).toFixed(1)}" height="${h.toFixed(1)}" fill="#3b82f6" rx="1"/>`; }).join('');
+  const showEvery=Math.ceil(ks.length/8);
+  const labels=ks.map((k,i)=> (i%showEvery===0)?`<text x="${(P+i*bw+bw/2).toFixed(1)}" y="${H-4}" fill="#9aa6be" font-size="9" text-anchor="middle">${k}</text>`:'').join('');
+  $('#daily').innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${bars}${labels}</svg>`;
+}
+
+function renderTable(cur){
+  const rows=[...cur].sort((a,b)=> a.d<b.d?1:a.d>b.d?-1:0);
+  if(!rows.length){ $('#table').innerHTML='<div class="empty">거래 데이터가 없습니다.</div>'; return; }
+  const body=rows.map(r=>`<tr>
+    <td>${r.d}</td><td>${esc(r.m)}</td><td>${esc(r.c)}</td>
+    <td class="num ${r.a<0?'neg':'pos'}">${r.a.toLocaleString('ko-KR')}</td>
+    <td>${esc(r.ac)}</td><td>${esc(r.mo)}</td></tr>`).join('');
+  $('#table').innerHTML=`<div class="tablewrap"><table>
+    <thead><tr><th>날짜</th><th>가맹점/적요</th><th>카테고리</th><th>금액</th><th>계정</th><th>메모</th></tr></thead>
+    <tbody>${body}</tbody></table></div>`;
+}
+
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- 초기화 ---------- */
+function init(){
+  $('#gen').textContent = DATA.generated_at || '-';
+  // 카드 모드 유무
+  if(!DATA.has_card){ $('#modeWrap').classList.add('hidden'); state.mode='전체'; }
+  // 월 셀렉트
+  const months = monthsOf(baseRows());
+  state.month = months[0];
+  $('#month').innerHTML = months.map(m=>`<option>${m}</option>`).join('');
+  $('#month').value = state.month;
+  $('#month').onchange = e=>{ state.month=e.target.value; render(); };
+  document.querySelectorAll('#mode button').forEach(b=>{
+    b.onclick=()=>{ state.mode=b.dataset.m; document.querySelectorAll('#mode button').forEach(x=>x.classList.toggle('on',x===b));
+      const ms=monthsOf(baseRows()); state.month=ms.includes(state.month)?state.month:ms[0];
+      $('#month').innerHTML=ms.map(m=>`<option>${m}</option>`).join(''); $('#month').value=state.month; render(); };
+  });
+  render();
+}
+
+/* ---------- 로그인 이벤트 ---------- */
+$('#unlock').onclick = ()=> tryUnlock($('#pw').value, $('#remember').checked);
+$('#pw').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock($('#pw').value, $('#remember').checked); });
+// 기억된 비밀번호 있으면 자동 해제 시도
+window.addEventListener('DOMContentLoaded', ()=>{
+  const saved = localStorage.getItem('fin_pp');
+  if(saved) tryUnlock(saved, true).then(ok=>{ if(!ok) localStorage.removeItem('fin_pp'); });
+});
+</script>
+</body>
+</html>
