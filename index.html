@@ -158,17 +158,25 @@
   </section>
 </div>
 
-<script src="data.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const won = n => Math.round(n).toLocaleString('ko-KR') + '원';
 let DATA = null;
+let FIN_ENC = null;
 const state = { mode: '전체', month: null };
+
+/* ---------- 데이터 로드(캐시 우회: 재배포 즉시 반영) ---------- */
+async function loadEnc(){
+  const r = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
+  if(!r.ok) throw new Error('data ' + r.status);
+  FIN_ENC = await r.json();
+}
 
 /* ---------- 복호화 ---------- */
 function b64ToBuf(b){ const s=atob(b); const u=new Uint8Array(s.length); for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i); return u; }
 async function decryptWith(passphrase){
-  const E = window.FIN_ENC;
+  if(!FIN_ENC) await loadEnc();
+  const E = FIN_ENC;
   const key = await crypto.subtle.deriveKey(
     {name:'PBKDF2', salt:b64ToBuf(E.salt), iterations:E.iter, hash:'SHA-256'},
     await crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']),
@@ -350,8 +358,10 @@ function init(){
 /* ---------- 로그인 이벤트 ---------- */
 $('#unlock').onclick = ()=> tryUnlock($('#pw').value, $('#remember').checked);
 $('#pw').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock($('#pw').value, $('#remember').checked); });
-// 기억된 비밀번호 있으면 자동 해제 시도
-window.addEventListener('DOMContentLoaded', ()=>{
+// 데이터 먼저 로드 → 기억된 비밀번호 있으면 자동 해제
+window.addEventListener('DOMContentLoaded', async ()=>{
+  try{ await loadEnc(); }
+  catch(e){ $('#err').textContent = '데이터를 불러오지 못했습니다. 새로고침 해주세요.'; return; }
   const saved = localStorage.getItem('fin_pp');
   if(saved) tryUnlock(saved, true).then(ok=>{ if(!ok) localStorage.removeItem('fin_pp'); });
 });
